@@ -14,7 +14,7 @@ class ClosingBuddyGUI:
         self.root.title("Tuffy's Closing Buddy")
         root.configure(bg = '#101010') 
 
-        WindowSet.setScreen(root, wRatio = 0.23, hRatio = 0.49) # Dynamically sets window size for program
+        WindowSet.setScreen(root, wRatio = 0.23, hRatio = .55) # Dynamically sets window size for program
 
         # Define denominations and their respective values
         self.coins = {
@@ -22,7 +22,7 @@ class ClosingBuddyGUI:
         }
         
         self.dollars = {
-             "20 dollar bills": 20.00, "10 dollar bills": 10.00, "5 dollar bills": 5.00, "1 dollar bills": 1.00
+             "100 dollar bills":100.00, "50 dollar bills": 50.00, "20 dollar bills": 20.00, "10 dollar bills": 10.00, "5 dollar bills": 5.00, "1 dollar bills": 1.00
         }
         
         self.entries = {}
@@ -30,7 +30,7 @@ class ClosingBuddyGUI:
     
     def create_widgets(self):
         color1 = '#343434'  # dark gray used for background for frames
-        color2 = '#35aeea'  # primary blue used throughout the app
+        color2 = '#29aff1'  # primary blue used throughout the app
         color3 = '#4d4d4d'  # lighter gray used for entry background
         color4 = '#ebebeb'  # cream color used for foreground
         theFont = "arial"   #Priamry font used
@@ -90,7 +90,7 @@ class ClosingBuddyGUI:
             self.additional_entries[field] = entry
 
         #Use of forloop for the result field, this time we use textboxes. We have a 3x2 grid same as the last grid 
-        result_fields = ["Sum", "Total", "Difference", "Cash", "Deposit"]
+        result_fields = ["Sum", "Total", "Difference", "Cash", "Deposit", "Tips"]
         self.result_text = {}
         for i, field in enumerate(result_fields):
             row = i % 3  # Calculate row index
@@ -110,7 +110,7 @@ class ClosingBuddyGUI:
         self.calculate_button = tk.Button(self.root, text="Calculate", command=self.calculate,
                                         activeforeground="white",
                                         activebackground="#6a6a6a",
-                                        fg='#363636',
+                                        fg=color1,
                                         bg=color2,
                                         font=("Fixedsys", 17),
                                         cursor="hand2",
@@ -124,13 +124,20 @@ class ClosingBuddyGUI:
         # Widget properties of the current date Label
         current_date = tk.Label(root,
                                 text=formatted_date,
-                                fg='#363636', bg=color2,
+                                fg=color1, bg=color2,
                                 font=("Fixedsys", 17)
                                 )
         current_date.grid(row=4, column=0, padx=15, pady=5, sticky="W")
 
-    #Function to calculate cash, we use the coin and dollar entries, and change the textbox of sum 
     def calculate_cash(self):
+        try:
+            expense = float(self.additional_entries["Expense"].get() or 0)
+        except ValueError:
+            expense = 0
+
+        # Tips = 90% of expense
+        tips = round(expense * 0.9)
+
         summ = 0.0
         for x, y in {**self.coins, **self.dollars}.items():
             try:
@@ -138,16 +145,38 @@ class ClosingBuddyGUI:
                 summ += count * y
             except ValueError:
                 pass  # Ignore non-integer inputs
-        
+
+        # Deduct tips from the dollar denominations (largest first)
+        remaining_tips = tips
+        for denomination in sorted(self.dollars.keys(), key=lambda d: -self.dollars[d]):  # Sort highest to lowest
+            try:
+                bill_value = self.dollars[denomination]
+                available_bills = int(self.entries[denomination].get())
+
+                if remaining_tips >= bill_value and available_bills > 0:
+                    bills_to_remove = min(remaining_tips // bill_value, available_bills)
+                    remaining_tips -= bills_to_remove * bill_value
+
+                    # Update the entry field for the respective bill
+                    self.entries[denomination].delete(0, tk.END)
+                    self.entries[denomination].insert(0, str(available_bills - bills_to_remove))
+            except ValueError:
+                pass  # Ignore invalid inputs
+
+        # Update the result textboxes
         self.result_text["Cash"].delete("1.0", tk.END)
-        self.result_text["Cash"].insert("1.0", str(summ))
+        self.result_text["Cash"].insert("1.0", str(summ - tips))  # Reflect deduction in cash
+
+        self.result_text["Tips"].delete("1.0", tk.END)
+        self.result_text["Tips"].insert("1.0", str(tips))
+            
 
     #Function to calculate sum, we get the entries from expense, credit and the textbox output of cash from the last function used 
     def calculate_sum(self):
         try:
-            expense = float(self.additional_entries["Expense"].get() or 0)
+            tips =  float(self.result_text["Tips"].get("1.0", tk.END).strip().replace("$", "") or 0)
         except ValueError:
-            expense = 0
+            tips = 0
         
         try:
             credit = float(self.additional_entries["Credit"].get() or 0)
@@ -159,7 +188,7 @@ class ClosingBuddyGUI:
         except ValueError:
             cash_value = 0
 
-        total_sum = expense + credit + cash_value
+        total_sum = tips + credit + cash_value
 
         # Update the "Sum" textbox with the calculated sum
         self.result_text["Sum"].delete("1.0", tk.END)
@@ -168,8 +197,14 @@ class ClosingBuddyGUI:
     #Calculate the rest of the output needed, total, deposit and difference 
     def calcualte_rest(self):
         #Calulate the total
-        total_p = float(self.additional_entries["Total Payment"].get())
-        the_float = float(self.additional_entries["The Float"].get())
+        try:
+            total_p = float(self.additional_entries["Total Payment"].get())
+        except ValueError:
+            total_p = 0
+        try:
+            the_float = float(self.additional_entries["The Float"].get())
+        except ValueError:
+            the_float = 0
 
         total = total_p + the_float
 
@@ -180,9 +215,19 @@ class ClosingBuddyGUI:
 
         #Calculate the deposit
         try:
+            hundred_dollar_bills = int(self.entries["100 dollar bills"].get()) *20
+        except ValueError:
+            hundred_dollar_bills = 0
+        try:
+            fifty_dollar_bills = int(self.entries["50 dollar bills"].get()) *20
+        except ValueError:
+            fifty_dollar_bills = 0
+        try:
             twenty_dollar_bills = int(self.entries["20 dollar bills"].get()) *20
         except ValueError:
             twenty_dollar_bills = 0
+
+        dep = hundred_dollar_bills + fifty_dollar_bills + twenty_dollar_bills
 
         # Update the "Total" textbox with the calculated total
         self.result_text["Total"].delete("1.0", tk.END)
@@ -194,7 +239,7 @@ class ClosingBuddyGUI:
 
         # Update the "Deposit" textbox with the value from "20 dollar bills"
         self.result_text["Deposit"].delete("1.0", tk.END)
-        self.result_text["Deposit"].insert("1.0", f"{twenty_dollar_bills}")
+        self.result_text["Deposit"].insert("1.0", f"{dep}")
 
     #This function is used for button, this is used to run all three main functions in order. 
     def calculate(self):
