@@ -131,7 +131,7 @@ class ClosingBuddyGUI:
                                 )
         current_date.grid(row=4, column=0, padx=15, pady=5, sticky="W")
 
-    def calculate_cash(self):
+    def calculate(self):
         #Calulate the total
         try:
             total_p = float(self.additional_entries["Total Payment"].get())
@@ -227,13 +227,6 @@ class ClosingBuddyGUI:
         # Update the "Diff" textbox with the calculated difference
         self.result_text["Difference"].delete("1.0", tk.END)
         self.result_text["Difference"].insert("1.0", f"${diff:.2f}")
-
-
-            
-        
-    #This function is used for button, this is used to run all three main functions in order. 
-    def calculate(self):
-        self.calculate_cash()
     
     #Function used to load the previous float, we use a file that holds this value of the previous day 
     def load_previous_float(self):
