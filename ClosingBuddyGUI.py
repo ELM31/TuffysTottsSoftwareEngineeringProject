@@ -27,13 +27,15 @@ class ClosingBuddyGUI:
         
         self.entries = {}
         self.create_widgets()
+        self.load_previous_float()  # Load stored Float at startup
+
     
     def create_widgets(self):
         color1 = '#343434'  # dark gray used for background for frames
         color2 = '#29aff1'  # primary blue used throughout the app
         color3 = '#4d4d4d'  # lighter gray used for entry background
         color4 = '#ebebeb'  # cream color used for foreground
-        theFont = "arial"   #Priamry font used
+        theFont = "arial"   #Primary font used
 
         #Label widget for header
         name_label = Label(root,
@@ -52,8 +54,8 @@ class ClosingBuddyGUI:
         report_frame = tk.Frame(self.root, bg=color1)
         report_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
 
-        summary_frame = tk.Frame(self.root, bg=color1)
-        summary_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+        cash_sumary_frame = tk.Frame(self.root, bg=color1)
+        cash_sumary_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
         #Using forloop to create the label and entry for each of the cash denominations. (We use for loop for scalibility and less redundancy)
         row = 1
@@ -95,10 +97,10 @@ class ClosingBuddyGUI:
         for i, field in enumerate(result_fields):
             row = i % 3  # Calculate row index
             col = i // 3  # Calculate column index
-            tk.Label(summary_frame, text=field,
+            tk.Label(cash_sumary_frame, text=field,
                     fg=color2, bg=color1,
                     font=(theFont, 10)).grid(row=row, column=col * 2, padx=5, pady=2)
-            text = tk.Text(summary_frame,
+            text = tk.Text(cash_sumary_frame,
                         width=8, height=1,
                         fg=color4, bg='#101010',
                         font=(theFont, 10),
@@ -130,72 +132,6 @@ class ClosingBuddyGUI:
         current_date.grid(row=4, column=0, padx=15, pady=5, sticky="W")
 
     def calculate_cash(self):
-        try:
-            expense = float(self.additional_entries["Expense"].get() or 0)
-        except ValueError:
-            expense = 0
-
-        # Tips = 90% of expense
-        tips = round(expense * 0.9)
-
-        summ = 0.0
-        for x, y in {**self.coins, **self.dollars}.items():
-            try:
-                count = int(self.entries[x].get())
-                summ += count * y
-            except ValueError:
-                pass  # Ignore non-integer inputs
-
-        # Deduct tips from the dollar denominations (largest first)
-        remaining_tips = tips
-        for denomination in sorted(self.dollars.keys(), key=lambda d: -self.dollars[d]):  # Sort highest to lowest
-            try:
-                bill_value = self.dollars[denomination]
-                available_bills = int(self.entries[denomination].get())
-
-                if remaining_tips >= bill_value and available_bills > 0:
-                    bills_to_remove = min(remaining_tips // bill_value, available_bills)
-                    remaining_tips -= bills_to_remove * bill_value
-
-                    # Update the entry field for the respective bill
-                    self.entries[denomination].delete(0, tk.END)
-                    self.entries[denomination].insert(0, str(available_bills - bills_to_remove))
-            except ValueError:
-                pass  # Ignore invalid inputs
-
-        # Update the result textboxes
-        self.result_text["Cash"].delete("1.0", tk.END)
-        self.result_text["Cash"].insert("1.0", str(summ - tips))  # Reflect deduction in cash
-
-        self.result_text["Tips"].delete("1.0", tk.END)
-        self.result_text["Tips"].insert("1.0", str(tips))
-            
-
-    #Function to calculate sum, we get the entries from expense, credit and the textbox output of cash from the last function used 
-    def calculate_sum(self):
-        try:
-            tips =  float(self.result_text["Tips"].get("1.0", tk.END).strip().replace("$", "") or 0)
-        except ValueError:
-            tips = 0
-        
-        try:
-            credit = float(self.additional_entries["Credit"].get() or 0)
-        except ValueError:
-            credit = 0
-
-        try:
-            cash_value = float(self.result_text["Cash"].get("1.0", tk.END).strip().replace("$", "") or 0)
-        except ValueError:
-            cash_value = 0
-
-        total_sum = tips + credit + cash_value
-
-        # Update the "Sum" textbox with the calculated sum
-        self.result_text["Sum"].delete("1.0", tk.END)
-        self.result_text["Sum"].insert("1.0", f"${total_sum:.2f}")
-
-    #Calculate the rest of the output needed, total, deposit and difference 
-    def calcualte_rest(self):
         #Calulate the total
         try:
             total_p = float(self.additional_entries["Total Payment"].get())
@@ -208,18 +144,47 @@ class ClosingBuddyGUI:
 
         total = total_p + the_float
 
-        #Calculate the difference
-        summ = float(self.result_text["Sum"].get("1.0", tk.END).strip().replace("$", "") or 0)
+        #Get expense from widget entry 
+        try:
+            expense = float(self.additional_entries["Expense"].get() or 0)
+        except ValueError:
+            expense = 0
+        #tips is 90% of the expense 
+        tips = round(expense * 0.9)
 
-        diff = summ - total
+        #get the sum of all of the cash 
+        cash_sum = 0.0
+        for x, y in {**self.coins, **self.dollars}.items():
+            try:
+                count = int(self.entries[x].get())
+                cash_sum += count * y
+            except ValueError:
+                pass  
+        #We take the tips through credit from the cash_sum 
+        cash_sum = cash_sum - tips 
+
+        remaining_tips = tips
+        for denomination in sorted(self.dollars.keys(), key=lambda d: -self.dollars[d]):
+            try:
+                bill_value = self.dollars[denomination]
+                available_bills = int(self.entries[denomination].get())
+
+                if remaining_tips >= bill_value and available_bills > 0:
+                    bills_to_remove = min(remaining_tips // bill_value, available_bills)
+                    remaining_tips -= bills_to_remove * bill_value
+
+                    self.entries[denomination].delete(0, tk.END)
+                    self.entries[denomination].insert(0, str(available_bills - bills_to_remove))
+            except ValueError:
+                pass
 
         #Calculate the deposit
         try:
-            hundred_dollar_bills = int(self.entries["100 dollar bills"].get()) *20
+            hundred_dollar_bills = int(self.entries["100 dollar bills"].get()) *100
         except ValueError:
             hundred_dollar_bills = 0
         try:
-            fifty_dollar_bills = int(self.entries["50 dollar bills"].get()) *20
+            fifty_dollar_bills = int(self.entries["50 dollar bills"].get()) *50
         except ValueError:
             fifty_dollar_bills = 0
         try:
@@ -227,26 +192,59 @@ class ClosingBuddyGUI:
         except ValueError:
             twenty_dollar_bills = 0
 
-        dep = hundred_dollar_bills + fifty_dollar_bills + twenty_dollar_bills
+        deposit = hundred_dollar_bills + fifty_dollar_bills + twenty_dollar_bills
 
-        # Update the "Total" textbox with the calculated total
+        float_value = cash_sum - deposit  # Calculate new Float
+
+        with open("float_value.txt", "w") as file: # Save Float value for next use
+            file.write(str(float_value))
+        
+        
+        try:
+            credit = float(self.additional_entries["Credit"].get() or 0)
+        except ValueError:
+            credit = 0
+        total_sum = tips + credit + cash_sum #calculate sum 
+
+        # Update the UI
+        self.result_text["Cash"].delete("1.0", tk.END)
+        self.result_text["Cash"].insert("1.0", str(cash_sum))
+
+        self.result_text["Tips"].delete("1.0", tk.END)
+        self.result_text["Tips"].insert("1.0", str(tips))
+
+        self.result_text["Deposit"].delete("1.0", tk.END)
+        self.result_text["Deposit"].insert("1.0", str(deposit))
+
         self.result_text["Total"].delete("1.0", tk.END)
         self.result_text["Total"].insert("1.0", f"${total:.2f}")
 
+        #Calculate the difference
+        self.result_text["Sum"].delete("1.0", tk.END)
+        self.result_text["Sum"].insert("1.0", f"${total_sum:.2f}")
+        
+        diff = total_sum - total
         # Update the "Diff" textbox with the calculated difference
         self.result_text["Difference"].delete("1.0", tk.END)
         self.result_text["Difference"].insert("1.0", f"${diff:.2f}")
 
-        # Update the "Deposit" textbox with the value from "20 dollar bills"
-        self.result_text["Deposit"].delete("1.0", tk.END)
-        self.result_text["Deposit"].insert("1.0", f"{dep}")
 
+            
+        
     #This function is used for button, this is used to run all three main functions in order. 
     def calculate(self):
         self.calculate_cash()
-        self.calculate_sum()
-        self.calcualte_rest()
-        
+    
+    #Function used to load the previous float, we use a file that holds this value of the previous day 
+    def load_previous_float(self):
+        try:
+            with open("float_value.txt", "r") as file:
+                float_value = file.read().strip()
+                if float_value:
+                    self.additional_entries["The Float"].insert(0, float_value)  # Load previous Float
+        except FileNotFoundError:
+            pass  # No previous float exists yet
+
 #Main function used to run the GUI
 if __name__ == "__main__":
     root = tk.Tk()
