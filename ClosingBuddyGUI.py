@@ -1,4 +1,3 @@
-import tkinter as tk
 from tkinter import *               #Tkinter library     
 from datetime import date           #For current date 
 import WindowSet                    #Sets tool window dimensions off of current screen
@@ -139,8 +138,6 @@ class ClosingBuddyGUI:
         if not hasattr(self, 'starting_bills'):
             self.starting_bills = {denom: int(self.entries[denom].get() or 0) for denom in self.dollars}
             x = {denom: int(self.entries[denom].get() or 0) for denom in self.dollars}
-            
-            print(f"Value is:{x}\n")
         
         #Calulate the total
         try:
@@ -148,7 +145,7 @@ class ClosingBuddyGUI:
         except ValueError:
             total_p = 0
         try:
-            the_float = float(self.additional_entries["The Float"].get())
+            the_float = round(float(self.additional_entries["The Float"].get()), 2)
         except ValueError:
             the_float = 0
 
@@ -313,13 +310,14 @@ class ClosingBuddyGUI:
             
         # Function to save the summary
         def save_summary():
+            date_for_file = today.strftime("%m.%d.%Y")
             # Ensure the "Summaries" folder exists
             save_folder = "Summaries"
             os.makedirs(save_folder, exist_ok=True)  # Creates folder if it doesn’t exist
 
             # Format filename with current date
-            filename = os.path.join(save_folder, f"Summary_{formatted_date}"+".txt")
-            print(f"Summary_{formatted_date}")
+            filename = os.path.join(save_folder, f"Summary_{date_for_file}"+".txt")
+            print(str(filename)+"\n\n")
 
             # Open file and write summary data
             with open(filename, "w") as file:  # "w" creates or overwrites the file
