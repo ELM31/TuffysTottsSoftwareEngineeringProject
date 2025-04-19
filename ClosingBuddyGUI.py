@@ -518,11 +518,10 @@ class ClosingBuddyGUI:
         # Labor report as % of total payment
         total_hours = sum(emp.hours_worked for emp in employees)
         labor_total = 0
-        if total_hours > 0:
-            for emp in employees:
-                share = emp.hours_worked / total_hours
-                emp_wage = total_payment * share * 0.15  # Assume 15% goes to wages
-                labor_total += emp_wage
+        for emp in employees:
+            emp_wage = emp.hours_worked * emp.hourly_rate
+            labor_total += emp_wage
+
         labor_percentage = ((labor_total / total_payment) * 100) if total_payment else 0
 
         # Simulate credit tips and expected cash
